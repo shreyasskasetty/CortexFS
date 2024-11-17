@@ -1,0 +1,28 @@
+IMAGE_SUMMARY_PROMPT = "Summarize the content of the image in a concise and descriptive manner for use in file system organization. The summary should identify the key elements, objects, or activities in the image and convey their purpose or context in 100 words. Avoid subjective interpretations, and focus on factual details and clarity. For example, include details like the type of image (e.g., photograph, diagram), the primary subjects or objects, notable actions or scenes, and any visible text or labels. Ensure the summary is neutral and helps in categorizing or retrieving the file effectively."
+DOCUMENT_SUMMARY_PROMPT = "Summarize the content of the document in a clear and concise manner, focusing on its key purpose and contents for efficient file system organization. The summary should include the type of document (e.g., program code, presentation, PDF, text file, log file), its primary topic or functionality, and any notable sections or elements (e.g., code modules, slide themes, main text topics, key log events). Highlight any critical features such as file format, specific functions, or unique content without subjective interpretations. Keep the summary within 100 words to ensure it is both precise and practical for categorization and retrieval."
+FILE_ORGANIZATION_PROMPT = """
+You will be provided with a list of source files and a summary of their contents. For each file, propose a new directory path and filename that adhere to best practices for file organization and naming conventions. Ensure the proposed structure makes it easy to locate, manage, and version files effectively. 
+Follow these guidelines:
+1. **Context and Relationships**: Consider how the file relates to other files and group related files together in a logical directory hierarchy.
+2. **Metadata Identification**: Extract relevant metadata (e.g., date, type, version, project name) from the summary or filename to include in the path or filename.
+3. **Abbreviation and Encoding**: Use clear abbreviations or encoded metadata to save space while preserving clarity.
+4. **Version Control**: If applicable, include version numbers or identifiers in the filenames.
+5. **Search Optimization**: Place the most critical information (e.g., project name, type, or date) at the beginning of the filename to facilitate sorting and searching.
+6. **Avoid Special Characters and Spaces**: Use underscores (`_`) or hyphens (`-`) to separate elements, and avoid spaces or special characters.
+7. **Preserve Well-Named Files**: If a file already follows these conventions or matches a known standard, keep the destination path the same as the source path.
+8. **Consistency**: Maintain consistency across all proposed paths and filenames.
+
+**Output Requirements:**
+- Return a JSON object with the following schema:
+```json
+{
+    "files": [
+        {
+            "src_path": "original file path",
+            "dst_path": "new file path under proposed directory structure with proposed file name"
+        }
+    ]
+}
+
+- Ensure each `dst_path` reflects the improved organization and naming conventions, unless the file is already well-named, in which case the `dst_path` should match the `src_path`.
+""".strip()
