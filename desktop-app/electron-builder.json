@@ -1,0 +1,16 @@
+{
+    "appId":"com.skasetty.cortexfs",
+    "files": ["dist-electron", "dist-react"],
+    "icon": "./icon-cortexfs.png",
+    "extraResources": ["dist-electron/preload.cjs", "src/assets/**"],
+    "mac": {
+        "target": "dmg"
+    },
+    "linux": {
+        "target": "AppImage",
+        "category": "Utility"
+    },
+    "win": {
+         "target": ["portable", "msi"]
+    }
+}

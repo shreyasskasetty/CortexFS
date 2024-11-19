@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+  <!-- Background -->
+  <rect width="200" height="200" fill="none" />
+
+  <!-- Neural Network "C" -->
+  <path
+    d="M70 100c0-20 10-40 30-50s50-10 70 10"
+    stroke="url(#gradient-blue)"
+    stroke-width="6"
+    fill="none"
+  />
+  <circle cx="70" cy="100" r="6" fill="url(#gradient-green)" />
+  <circle cx="100" cy="80" r="6" fill="url(#gradient-blue)" />
+  <circle cx="140" cy="70" r="6" fill="url(#gradient-green)" />
+  <circle cx="165" cy="100" r="6" fill="url(#gradient-blue)" />
+  <line x1="70" y1="100" x2="100" y2="80" stroke="#78c6a3" stroke-width="2" />
+  <line x1="100" y1="80" x2="140" y2="70" stroke="#78c6a3" stroke-width="2" />
+  <line x1="140" y1="70" x2="165" y2="100" stroke="#78c6a3" stroke-width="2" />
+
+  <!-- File System Representation -->
+  <rect x="80" y="120" width="60" height="10" fill="url(#gradient-green)" />
+  <rect x="80" y="135" width="50" height="8" fill="url(#gradient-blue)" />
+  <rect x="80" y="148" width="40" height="6" fill="url(#gradient-green)" />
+
+  <!-- Text -->
+  <text x="50" y="180" font-family="Arial, sans-serif" font-size="16" fill="#3a4b5c">
+    Cortex File System
+  </text>
+
+  <!-- Gradients -->
+  <defs>
+    <linearGradient id="gradient-blue" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#3b82f6" />
+      <stop offset="100%" stop-color="#1e40af" />
+    </linearGradient>
+    <linearGradient id="gradient-green" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#10b981" />
+      <stop offset="100%" stop-color="#065f46" />
+    </linearGradient>
+  </defs>
+</svg>
