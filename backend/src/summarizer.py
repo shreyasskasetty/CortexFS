@@ -185,7 +185,7 @@ async def summarize_document(doc):
 
     summary = {
         "file_path": doc.metadata["file_name"],
-        "base_path": doc.metadata["source"],
+        # "base_path": doc.metadata["source"],
         "summary": msg.content,
     }
     return summary

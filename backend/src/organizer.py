@@ -12,21 +12,6 @@ from pathlib import Path
 from rich.tree import Tree
 from rich import print as rprint
 
-# def create_directory_tree(summaries: list, session):
-#     client = Groq(api_key=os.environ.get("GROQ_API_KEY"))
-#     chat_completion = client.chat.completions.create(
-#         messages=[
-#             {"role": "system", "content": FILE_ORGANIZATION_PROMPT},
-#             {"role": "user", "content": json.dumps(summaries)},
-#         ],
-#         model="llama-3.1-70b-versatile",
-#         response_format={"type": "json_object"},  # Uncomment if needed
-#         temperature=0,
-#     )
-
-#     file_tree = json.loads(chat_completion.choices[0].message.content)["files"]
-#     return file_tree
-
 class FileMove(BaseModel):
     src_path: str
     dst_path: str
@@ -34,6 +19,28 @@ class FileMove(BaseModel):
 class DirectoryTree(BaseModel):
     files: List[FileMove]
 
+def get_directories(base_dir, exclude_dirs=None):
+    """
+    Recursively get all directory paths in a base directory, excluding specified directories.
+
+    :param base_dir: The base directory to search in.
+    :param exclude_dirs: A list of folder names to exclude.
+    :return: A list of directory paths.
+    """
+    if exclude_dirs is None:
+        exclude_dirs = ["node_modules", ".cache", "build"]
+
+    directory_paths = []
+
+    for root, dirs, _ in os.walk(base_dir):
+        # Modify dirs in-place to exclude specified directories
+        dirs[:] = [d for d in dirs if d not in exclude_dirs]
+
+        # Add each directory to the list
+        for directory in dirs:
+            directory_paths.append(os.path.join(root, directory))
+
+    return directory_paths
 
 def get_reorganization_actions(summaries: list):
     chat_groq = ChatGroq(
@@ -98,7 +105,6 @@ def create_directory_structure(file_moves, summaries, base_path, agentops):
         "Success", end_state_reason="Reorganized directory structure"
     )
     return tree
-
 
 def convert_to_tree_with_details(data, base_path):
     def add_to_tree(tree, path_parts, file_data):
