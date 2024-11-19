@@ -12,6 +12,7 @@ from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from dotenv import load_dotenv
+from src.organizer import convert_to_tree_with_details
 from src.organizer import get_reorganization_actions, create_directory_structure
 from src.summarizer import get_summaries
 from src.summarizer import load_documents_from_directory
@@ -23,6 +24,11 @@ class Request(BaseModel):
     instruction: Optional[str] = None
     private: Optional[bool] = False
 
+
+class CommitRequest(BaseModel):
+    base_path: str
+    src_path: str  # Relative to base_path
+    dst_path: str  # Relative to base_path
 
 def create_app():
     app = FastAPI()
@@ -59,11 +65,50 @@ def create_app():
         print("Creating directory structure...")
         tree = create_directory_structure(file_moves["files"], summaries, path, agentops=session)
         
+
         files = file_moves["files"]
         for file in files:
             file["summary"] = summaries[files.index(file)]["summary"]
+
+        response_data = convert_to_tree_with_details(files, base_path=path)
         # Generate a tree structure of the summaries
-        return {"status": "ok", "summaries": files}
+        return {"status": "ok", "treeStructure": response_data}
+    
+    @app.post("/commit")
+    async def commit(request: CommitRequest):
+        print('*'*80)
+        print(request)
+        print(request.base_path)
+        print(request.src_path)
+        print(request.dst_path)
+        print('*'*80)
+
+        src = os.path.join(request.base_path, request.src_path)
+        dst = os.path.join(request.base_path, request.dst_path)
+
+        if not os.path.exists(src):
+            raise HTTPException(
+                status_code=400, detail="Source path does not exist in filesystem"
+            )
+
+        # Ensure the destination directory exists
+        dst_directory = os.path.dirname(dst)
+        os.makedirs(dst_directory, exist_ok=True)
+
+        try:
+            # If src is a file and dst is a directory, move the file into dst with the original filename.
+            if os.path.isfile(src) and os.path.isdir(dst):
+                shutil.move(src, os.path.join(dst, os.path.basename(src)))
+            else:
+                shutil.move(src, dst)
+        except Exception as e:
+            raise HTTPException(
+                status_code=500,
+                detail=f"An error occurred while moving the resource: {e}"
+            )
+
+        return {"message": "Commit successful"}
+
     return app
 
 if __name__ == "__main__":

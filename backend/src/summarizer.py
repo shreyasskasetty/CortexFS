@@ -110,19 +110,19 @@ def process_file(file_path, category):
             return file.read()
     return None
 
-def load_documents_from_directory(file_path):
-    categorized_files, unsupported_files = categorize_files(file_path)
+def load_documents_from_directory(base_path):
+    categorized_files, unsupported_files = categorize_files(base_path)
     documents = []
 
     for category, files in categorized_files.items():
         for fname in files:
-            full_path = os.path.join(file_path, fname)
+            full_path = os.path.join(base_path, fname)
             content = process_file(full_path, category)
             if content:
                 documents.append(
                     Document(
                         page_content=content,
-                        metadata={"file_name": fname, "source": full_path, "category": category},
+                        metadata={"file_name": fname, "source": base_path, "category": category},
                     )
                 )
 
@@ -161,7 +161,7 @@ async def summarize_image(doc):
         ]
     )
     summary = {
-        "file_path": doc.metadata["source"],
+        "file_path": doc.metadata["file_name"],
         "summary": msg.content,
     }
     return summary
@@ -184,7 +184,8 @@ async def summarize_document(doc):
     )
 
     summary = {
-        "file_path": doc.metadata["source"],
+        "file_path": doc.metadata["file_name"],
+        "base_path": doc.metadata["source"],
         "summary": msg.content,
     }
     return summary

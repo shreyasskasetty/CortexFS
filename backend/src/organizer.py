@@ -1,6 +1,8 @@
 import json
 import os
 from src.prompts import FILE_ORGANIZATION_PROMPT
+from mimetypes import guess_type
+from datetime import datetime
 from langchain_groq import ChatGroq
 from langchain_core.messages import SystemMessage, HumanMessage
 # from langchain.output_parsers import JsonOutputParser
@@ -81,7 +83,7 @@ def create_directory_structure(file_moves, summaries, base_path, agentops):
         current["__summary__"] = summary["summary"]
 
         # Prepend base path to the destination path
-        file["dst_path"] = str(Path(base_path) / file["dst_path"])
+        file["dst_path"] = file["dst_path"]
         file["summary"] = summary["summary"]
 
     # Convert tree structure into a visual representation
@@ -96,6 +98,70 @@ def create_directory_structure(file_moves, summaries, base_path, agentops):
         "Success", end_state_reason="Reorganized directory structure"
     )
     return tree
+
+
+def convert_to_tree_with_details(data, base_path):
+    def add_to_tree(tree, path_parts, file_data):
+        """Recursively adds file or folder data to the tree structure."""
+        if not path_parts:
+            return
+        
+        current_part = path_parts[0]
+        remaining_parts = path_parts[1:]
+        
+        # Check if the current part exists in the children of the current tree level
+        child = next((child for child in tree["children"] if child["name"] == current_part), None)
+        
+        if not child:
+            # Determine if it's a folder or a file
+            if remaining_parts:  # More parts remaining -> it's a folder
+                child = {
+                    "name": current_part,
+                    "type": "folder",
+                    "path": os.path.join(tree["path"], current_part),
+                    "children": [],
+                }
+            else:  # No parts remaining -> it's a file
+                # Get the absolute source path
+                src_abs_path = os.path.join(base_path, file_data["src_path"])
+                
+                # Get file size and type
+                size = os.path.getsize(src_abs_path) if os.path.exists(src_abs_path) else "Unknown"
+                file_type = guess_type(src_abs_path)[0] or "Unknown"
+                last_modified = (
+                    datetime.fromtimestamp(os.path.getmtime(src_abs_path)).strftime("%Y-%m-%d %H:%M:%S")
+                    if os.path.exists(src_abs_path) else "Unknown"
+                )
+                # Create file metadata
+                child = {
+                    "name": current_part,
+                    "type": "file",
+                    "path": os.path.join(tree["path"], current_part),
+                    "summary": file_data["summary"],
+                    "source": file_data["src_path"],
+                    "destination": file_data["dst_path"],
+                    "size": f"{size} bytes" if size != "Unknown" else size,
+                    "lastModified": last_modified,  
+                    "fileType": file_type,
+                    "status": "Ready to move",
+                }
+            tree["children"].append(child)
+        
+        # Recur into the next level if it's a folder
+        if child["type"] == "folder":
+            add_to_tree(child, remaining_parts, file_data)
+
+    # Use only the last part of the base path as the root name
+    root_name = os.path.basename(base_path)
+    root = {"name": root_name, "type": "folder", "path": root_name, "children": []}
+    
+    for item in data:
+        dst_path = item["dst_path"]
+        # Split the destination path into parts relative to the root
+        path_parts = dst_path.split("/")
+        add_to_tree(root, path_parts, item)
+    
+    return root
 
 def add_to_tree_visual(tree, root_node):
     """
