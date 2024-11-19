@@ -261,12 +261,12 @@ const FileOrganizer = () => {
               <FileDetailRow 
                 icon={Info} 
                 label="Size" 
-                value={selectedFile.size}
+                value={selectedFile.size!}
               />
               <FileDetailRow 
                 icon={Clock} 
                 label="Last Modified" 
-                value={selectedFile.lastModified}
+                value={selectedFile.lastModified!}
               />
             </div>
           </CardContent>
