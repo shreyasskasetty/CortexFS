@@ -5,20 +5,21 @@ import agentops
 from pathlib import Path
 from typing import Optional
 import uvicorn
-from asciitree import LeftAligned
-from asciitree.drawing import BOX_LIGHT, BoxStyle
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from dotenv import load_dotenv
-from src.organizer import convert_to_tree_with_details
-from src.organizer import get_reorganization_actions, create_directory_structure
-from src.summarizer import get_summaries
-from src.summarizer import load_documents_from_directory
+from src.organizer import DirectoryOrganizer
+from src.summarizer import FileSummarizer
+from src.watchdog import FileEventProducer
+
 load_dotenv()
 
+# Initialize AgentOps
 agentops.init(default_tags=["llama-fs"], auto_start_session=False, api_key=os.getenv("AGENTOPS_API_KEY"))
+
+
 class Request(BaseModel):
     path: Optional[str] = None
     instruction: Optional[str] = None
@@ -27,20 +28,41 @@ class Request(BaseModel):
 
 class CommitRequest(BaseModel):
     base_path: str
-    src_path: str  # Relative to base_path
-    dst_path: str  # Relative to base_path
+    src_path: str  
+    dst_path: str 
+
+class WatchRequest(BaseModel):
+    watch_directory: str
+    target_directory: str
 
 def create_app():
     app = FastAPI()
-    origins = [
-        "*"
-    ]
+    origins = ["*"]
     app.add_middleware(
         CORSMiddleware,
         allow_origins=origins,
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
+    )
+
+    # Initialize classes
+    organizer = DirectoryOrganizer(
+        base_dir=None,  # Base directory will be set dynamically
+        model_name="llama-3.1-70b-versatile"
+    )
+
+    summarizer = FileSummarizer(
+        base_path=None,  # Base path will be set dynamically
+        azure_api_key=os.getenv("AZURE_API_KEY"),
+        tessdata_prefix=os.getenv("TESSDATA_PREFIX"),
+    )
+
+    producer = FileEventProducer(
+        organizer=organizer,
+        summarizer=summarizer,
+        rabbitmq_url=os.getenv("RABBITMQ_URL"),
+        queue_name="suggestion-notifications",
     )
 
     @app.get("/")
@@ -51,29 +73,34 @@ def create_app():
     async def batch_organize(request: Request):
         session = agentops.start_session(tags=["LlamaFS"])
         path = request.path
+
         if not os.path.exists(path):
             raise HTTPException(status_code=404, detail="Path not found")
-        print(os.getenv("GROQ_API_KEY"))
-        print("Loading documents...")
-        documents, unsupported_files = load_documents_from_directory(path)
-        print(f"Summarizing {len(documents)} documents...")
-        # Get summaries of all the files in the directory
-        summaries = await get_summaries(documents)
-        print("Generating reorganization actions...")
-        file_moves = get_reorganization_actions(summaries)
-        print(file_moves["files"])
-        print("Creating directory structure...")
-        tree = create_directory_structure(file_moves["files"], summaries, path, agentops=session)
-        
 
+        print("Loading documents...")
+        summarizer.base_path = path
+        documents, unsupported_files = summarizer.load_documents()
+
+        print(f"Summarizing {len(documents)} documents...")
+        summaries = await summarizer.summarize_documents(documents)
+
+        print("Generating reorganization actions...")
+        organizer.base_dir = path
+        file_moves = organizer.get_reorganization_actions(summaries)
+
+        print("Creating directory structure...")
+        tree = organizer.create_directory_structure(file_moves["files"], summaries, path, agentops=session)
+
+        # Add summaries to the file moves
         files = file_moves["files"]
         for file in files:
             file["summary"] = summaries[files.index(file)]["summary"]
 
-        response_data = convert_to_tree_with_details(files, base_path=path)
-        # Generate a tree structure of the summaries
+        print("Converting tree structure for response...")
+        response_data = organizer.convert_to_tree_with_details(files, base_path=path)
+
         return {"status": "ok", "treeStructure": response_data}
-    
+
     @app.post("/commit")
     async def commit(request: CommitRequest):
         print('*'*80)
@@ -109,7 +136,35 @@ def create_app():
 
         return {"message": "Commit successful"}
 
+    @app.post("/start-producer")
+    async def start_producer(request: WatchRequest):
+        """
+        Start the file event producer with the given directory to watch.
+        """
+        directory_to_watch = request.watch_directory
+        target_directory = request.target_directory
+        try:
+            producer.start_monitoring(directory_to_watch, target_directory)
+            return {"status": "Producer started", "directory": directory_to_watch}
+        except FileNotFoundError as e:
+            raise HTTPException(status_code=404, detail=str(e))
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Failed to start producer: {e}")
+
+
+    @app.post("/stop-producer")
+    async def stop_producer():
+        """
+        Stop the file event producer.
+        """
+        try:
+            producer.stop_monitoring()
+            return {"status": "Producer stopped"}
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Failed to stop producer: {e}")
+
     return app
+
 
 if __name__ == "__main__":
     app = create_app()

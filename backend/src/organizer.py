@@ -1,17 +1,17 @@
 import json
 import os
-from src.prompts import FILE_ORGANIZATION_PROMPT
 from mimetypes import guess_type
 from datetime import datetime
-from langchain_groq import ChatGroq
-from langchain_core.messages import SystemMessage, HumanMessage
-# from langchain.output_parsers import JsonOutputParser
-from pydantic import BaseModel
-from typing import Optional, List
 from pathlib import Path
 from rich.tree import Tree
 from rich import print as rprint
+from pydantic import BaseModel
+from typing import Optional, List
+from langchain_groq import ChatGroq
+from langchain_core.messages import SystemMessage, HumanMessage
+from src.prompts import FILE_ORGANIZATION_PROMPT, FILE_MOVE_SUGGESTION_PROMPT
 
+# Models
 class FileMove(BaseModel):
     src_path: str
     dst_path: str
@@ -19,169 +19,143 @@ class FileMove(BaseModel):
 class DirectoryTree(BaseModel):
     files: List[FileMove]
 
-def get_directories(base_dir, exclude_dirs=None):
-    """
-    Recursively get all directory paths in a base directory, excluding specified directories.
+class PathSuggestions(BaseModel):
+    src_path: str
+    suggestions: List[str]
 
-    :param base_dir: The base directory to search in.
-    :param exclude_dirs: A list of folder names to exclude.
-    :return: A list of directory paths.
-    """
-    if exclude_dirs is None:
-        exclude_dirs = ["node_modules", ".cache", "build"]
+# Class Definition
+class DirectoryOrganizer:
+    def __init__(self, base_dir: str, model_name: str, exclude_dirs=None):
+        self.base_dir = base_dir
+        self.model_name = model_name
+        self.exclude_dirs = exclude_dirs if exclude_dirs else ["node_modules", ".cache", "build"]
+        self.chat_groq = ChatGroq(model=model_name, temperature=0)
 
-    directory_paths = []
-
-    for root, dirs, _ in os.walk(base_dir):
-        # Modify dirs in-place to exclude specified directories
-        dirs[:] = [d for d in dirs if d not in exclude_dirs]
-
-        # Add each directory to the list
-        for directory in dirs:
-            directory_paths.append(os.path.join(root, directory))
-
-    return directory_paths
-
-def get_reorganization_actions(summaries: list):
-    chat_groq = ChatGroq(
-        model="llama-3.1-70b-versatile",
-        temperature=0,
-    )
+    def get_path_suggestions(self, dst_directory, summary: str):
+        """
+        Get path suggestions for a given summary.
+        """
+        dst_directies = self.get_directories(dst_directory)
+        formatted_prompt = FILE_MOVE_SUGGESTION_PROMPT.format(destination_directories=json.dumps(dst_directies, indent=4))
+        structured_chat_groq = self.chat_groq.with_structured_output(PathSuggestions)
+        messages = [
+            SystemMessage(content=formatted_prompt),
+            HumanMessage(content=json.dumps(summary))
+        ]
+        response = structured_chat_groq.invoke(messages)
+        return response.dict()
     
-    # parser = JsonOutputParser(pydantic_object=DirectoryTree)
+    def get_directories(self, dst_directory):
+        """
+        Recursively get all directory paths in the base directory, excluding specified directories.
+        """
+        directory_paths = []
+
+        for root, dirs, _ in os.walk(dst_directory):
+            # Modify dirs in-place to exclude specified directories
+            dirs[:] = [d for d in dirs if d not in self.exclude_dirs]
+
+            for directory in dirs:
+                directory_paths.append(os.path.join(root, directory))
+
+        return directory_paths
     
-    structured_chat_groq = chat_groq.with_structured_output(DirectoryTree)
+    def get_reorganization_actions(self, summaries: list):
+        """
+        Generate reorganization actions using the ChatGroq model.
+        """
+        structured_chat_groq = self.chat_groq.with_structured_output(DirectoryTree)
+        messages = [
+            SystemMessage(content=FILE_ORGANIZATION_PROMPT),
+            HumanMessage(content=json.dumps(summaries))
+        ]
+        response = structured_chat_groq.invoke(messages)
+        return response.dict()
     
-    messages = [
-        SystemMessage(content=FILE_ORGANIZATION_PROMPT),
-        HumanMessage(content=json.dumps(summaries))
-    ]
+    def create_directory_structure(self, file_moves, summaries, base_path, agentops):
+        """
+        Create a directory tree structure and add summaries for visualization.
+        """
+        tree = {}
+        for file, summary in zip(file_moves, summaries):
+            parts = Path(file["dst_path"]).parts
+            current = tree
+            for part in parts:
+                current = current.setdefault(part, {})
+            current["__summary__"] = summary["summary"]
+            file["dst_path"] = file["dst_path"]
+            file["summary"] = summary["summary"]
+
+        root = Tree(base_path)
+        self.add_to_tree_visual(tree, root)
+        rprint(root)
+
+        agentops.end_session("Success", end_state_reason="Reorganized directory structure")
+        return tree
     
-    response = structured_chat_groq.invoke(messages)
-    
-    return response.dict()
-
-def create_directory_structure(file_moves, summaries, base_path, agentops):
-    """
-    Create a directory tree dictionary from file paths and add summaries.
-
-    Args:
-        files (list): List of file objects with "dst_path" and optional metadata.
-        summaries (list): List of summaries corresponding to the files.
-        base_path (str): Base path to prepend to all "dst_path" values.
-
-    Returns:
-        list: Updated list of files with summaries and adjusted "dst_path".
-    """
-    # Initialize the root of the directory tree
-    tree = {}
-
-    # Build the tree structure
-    for file, summary in zip(file_moves, summaries):
-        # Split the destination path into parts
-        parts = Path(file["dst_path"]).parts
-        current = tree
-
-        # Create nested dictionaries for the path parts
-        for part in parts:
-            current = current.setdefault(part, {})
-
-        # Attach the summary to the final part of the path
-        current["__summary__"] = summary["summary"]
-
-        # Prepend base path to the destination path
-        file["dst_path"] = file["dst_path"]
-        file["summary"] = summary["summary"]
-
-    # Convert tree structure into a visual representation
-    root = Tree(base_path)
-    add_to_tree_visual(tree, root)
-
-    # Display the tree structure
-    rprint(root)
-
-    # End session and return updated files
-    agentops.end_session(
-        "Success", end_state_reason="Reorganized directory structure"
-    )
-    return tree
-
-def convert_to_tree_with_details(data, base_path):
-    def add_to_tree(tree, path_parts, file_data):
-        """Recursively adds file or folder data to the tree structure."""
-        if not path_parts:
-            return
+    def convert_to_tree_with_details(self, data, base_path):
+        """
+        Convert data into a tree structure with detailed file information.
+        """
+        def add_to_tree(tree, path_parts, file_data):
+            if not path_parts:
+                return
+            
+            current_part = path_parts[0]
+            remaining_parts = path_parts[1:]
+            
+            child = next((child for child in tree["children"] if child["name"] == current_part), None)
+            
+            if not child:
+                if remaining_parts:
+                    child = {
+                        "name": current_part,
+                        "type": "folder",
+                        "path": os.path.join(tree["path"], current_part),
+                        "children": [],
+                    }
+                else:
+                    src_abs_path = os.path.join(base_path, file_data["src_path"])
+                    size = os.path.getsize(src_abs_path) if os.path.exists(src_abs_path) else "Unknown"
+                    file_type = guess_type(src_abs_path)[0] or "Unknown"
+                    last_modified = (
+                        datetime.fromtimestamp(os.path.getmtime(src_abs_path)).strftime("%Y-%m-%d %H:%M:%S")
+                        if os.path.exists(src_abs_path) else "Unknown"
+                    )
+                    child = {
+                        "name": current_part,
+                        "type": "file",
+                        "path": os.path.join(tree["path"], current_part),
+                        "summary": file_data["summary"],
+                        "source": file_data["src_path"],
+                        "destination": file_data["dst_path"],
+                        "size": f"{size} bytes" if size != "Unknown" else size,
+                        "lastModified": last_modified,  
+                        "fileType": file_type,
+                        "status": "Ready to move",
+                    }
+                tree["children"].append(child)
+            
+            if child["type"] == "folder":
+                add_to_tree(child, remaining_parts, file_data)
         
-        current_part = path_parts[0]
-        remaining_parts = path_parts[1:]
+        root_name = os.path.basename(base_path)
+        root = {"name": root_name, "type": "folder", "path": root_name, "children": []}
         
-        # Check if the current part exists in the children of the current tree level
-        child = next((child for child in tree["children"] if child["name"] == current_part), None)
+        for item in data:
+            dst_path = item["dst_path"]
+            path_parts = dst_path.split("/")
+            add_to_tree(root, path_parts, item)
         
-        if not child:
-            # Determine if it's a folder or a file
-            if remaining_parts:  # More parts remaining -> it's a folder
-                child = {
-                    "name": current_part,
-                    "type": "folder",
-                    "path": os.path.join(tree["path"], current_part),
-                    "children": [],
-                }
-            else:  # No parts remaining -> it's a file
-                # Get the absolute source path
-                src_abs_path = os.path.join(base_path, file_data["src_path"])
-                
-                # Get file size and type
-                size = os.path.getsize(src_abs_path) if os.path.exists(src_abs_path) else "Unknown"
-                file_type = guess_type(src_abs_path)[0] or "Unknown"
-                last_modified = (
-                    datetime.fromtimestamp(os.path.getmtime(src_abs_path)).strftime("%Y-%m-%d %H:%M:%S")
-                    if os.path.exists(src_abs_path) else "Unknown"
-                )
-                # Create file metadata
-                child = {
-                    "name": current_part,
-                    "type": "file",
-                    "path": os.path.join(tree["path"], current_part),
-                    "summary": file_data["summary"],
-                    "source": file_data["src_path"],
-                    "destination": file_data["dst_path"],
-                    "size": f"{size} bytes" if size != "Unknown" else size,
-                    "lastModified": last_modified,  
-                    "fileType": file_type,
-                    "status": "Ready to move",
-                }
-            tree["children"].append(child)
-        
-        # Recur into the next level if it's a folder
-        if child["type"] == "folder":
-            add_to_tree(child, remaining_parts, file_data)
-
-    # Use only the last part of the base path as the root name
-    root_name = os.path.basename(base_path)
-    root = {"name": root_name, "type": "folder", "path": root_name, "children": []}
+        return root
     
-    for item in data:
-        dst_path = item["dst_path"]
-        # Split the destination path into parts relative to the root
-        path_parts = dst_path.split("/")
-        add_to_tree(root, path_parts, item)
-    
-    return root
-
-def add_to_tree_visual(tree, root_node):
-    """
-    Recursively add nodes to the rich.Tree visual representation.
-
-    Args:
-        tree (dict): The dictionary representing the directory structure.
-        root_node (rich.tree.Tree): The root node of the visual tree.
-    """
-    for key, value in tree.items():
-        if key == "__summary__":
-            continue  # Skip the summary metadata
-        # Add a new branch for the current directory or file
-        child = root_node.add(key)
-        # Recursively process subdirectories/files
-        if isinstance(value, dict):
-            add_to_tree_visual(value, child)
+    def add_to_tree_visual(self, tree, root_node):
+        """
+        Add nodes to a Rich Tree visual representation.
+        """
+        for key, value in tree.items():
+            if key == "__summary__":
+                continue
+            child = root_node.add(key)
+            if isinstance(value, dict):
+                self.add_to_tree_visual(value, child)
