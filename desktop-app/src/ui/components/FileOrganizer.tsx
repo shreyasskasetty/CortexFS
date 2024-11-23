@@ -6,28 +6,7 @@ import { Button } from './ui/button';
 import { Alert, AlertTitle, AlertDescription } from './ui/alert';
 import axios, { AxiosRequestConfig } from 'axios';
 
-interface FileNode {
-  name: string;
-  type: 'file' | 'folder';
-  path: string;
-  children?: FileNode[];
-  summary?: string;
-  source?: string;
-  destination?: string;
-  size?: string;
-  lastModified?: string;
-  fileType?: string;
-  status?: string;
-}
-interface BatchOrganizeRequest {
-  path: string; // Define the expected structure of the request body
-}
 
-interface CommitRequest {
-  base_path: string;
-  src_path: string;
-  dst_path: string;
-}
 
 const FileOrganizer = () => {
   const [directoryPath, setDirectoryPath] = useState<string>('');
@@ -125,7 +104,7 @@ const FileOrganizer = () => {
       })
       //make a call to the backend
   }
-  
+
   const handleRemoveNodes = (node: FileNode, e: React.MouseEvent) => {
     e.stopPropagation();
 

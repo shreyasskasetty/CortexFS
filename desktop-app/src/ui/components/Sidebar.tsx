@@ -3,6 +3,7 @@ import { FolderTree, Bell, Settings, AlertCircle } from 'lucide-react';
 import FileOrganizer from './FileOrganizer';
 import SettingsView from './SettingsView';
 import SuggestionsView from './Suggestions';
+import axios, { AxiosRequestConfig }from 'axios';
 
 const Sidebar = () => {
   const [activeView, setActiveView] = useState('files');
@@ -19,10 +20,48 @@ const Sidebar = () => {
   const [targetDir, setTargetDir] = useState(() => {
     return localStorage.getItem('targetDirectory') || '';
   });
-  const [isWatchMode, setIsWatchMode] = useState(() => {
-    return localStorage.getItem('watchMode') === 'true';
-  });
+  const [isWatchMode, setIsWatchMode] = useState(false);
   const [validationError, setValidationError] = useState('');
+
+  const stopWatchDog = async () => {
+    const config: AxiosRequestConfig = {
+      headers: {
+        'Content-Type': 'application/json', // Ensure the content type is JSON
+      },
+    };
+
+    try {
+      const response = await axios.post('http://0.0.0.0:8000/stop-producer', config);
+      console.log(response.data);
+      return response.data;
+    } catch (error) {
+      alert('Error Occured: '+ error)
+      setIsWatchMode(false);
+      console.error('Error occurred:', error);
+    }
+    return null;
+  };
+
+  const startWatchDog = async (watchDirPath: string, targeDirPath: string) => {
+    const data: WatchDogStartRequest = { watch_directory: watchDirPath, target_directory: targeDirPath};
+
+    const config: AxiosRequestConfig = {
+      headers: {
+        'Content-Type': 'application/json', // Ensure the content type is JSON
+      },
+    };
+
+    try {
+      const response = await axios.post('http://0.0.0.0:8000/start-producer', data, config);
+      console.log(response.data);
+      return response.data;
+    } catch (error) {
+      alert('Error Occured: '+ error)
+      setIsWatchMode(false);
+      console.error('Error occurred:', error);
+    }
+    return null;
+  };
 
   // Save settings to localStorage
   useEffect(() => {
@@ -49,6 +88,21 @@ const Sidebar = () => {
       return;
     }
     setValidationError('');
+    if(isWatchMode === false) {
+      const status = startWatchDog(watchDir, targetDir);
+      console.log(status)
+      if (status === null) {
+        setIsWatchMode(false);
+        return;
+      }
+    }else{
+      const status = stopWatchDog();
+      console.log(status)
+      if (status === null) {
+        setIsWatchMode(true);
+        return;
+      }
+    }
     setIsWatchMode(!isWatchMode);
   };
 
