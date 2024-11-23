@@ -1,1 +1,1 @@
-{"root":["./src/ui/app.tsx","./src/ui/main.tsx","./src/ui/vite-env.d.ts"],"version":"5.6.3"}
+{"root":["./src/ui/app.tsx","./src/ui/main.tsx","./src/ui/vite-env.d.ts","./src/ui/components/fileorganizer.tsx","./src/ui/components/ui/alert.tsx","./src/ui/components/ui/button.tsx","./src/ui/components/ui/card.tsx","./src/ui/components/ui/input.tsx","./src/ui/components/ui/lib/utils.tsx","./types.d.ts"],"version":"5.6.3"}

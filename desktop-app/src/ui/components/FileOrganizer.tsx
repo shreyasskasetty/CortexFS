@@ -119,11 +119,33 @@ const FileOrganizer = () => {
           if(data){
             setCommitList([]);
             setFileStructure(null);
+            setSelectedFile(null);
           }
         }
       })
       //make a call to the backend
   }
+  
+  const handleRemoveNodes = (node: FileNode, e: React.MouseEvent) => {
+    e.stopPropagation();
+
+    setFileStructure((prev) => {
+      if (!prev) return null;
+
+      const removeNode = (currentNode: FileNode): FileNode | null => {
+        if (currentNode.path === node.path) return null; // Remove the node
+        if (currentNode.children) {
+          const updatedChildren = currentNode.children
+            .map(removeNode)
+            .filter((child) => child !== null) as FileNode[];
+          return { ...currentNode, children: updatedChildren };
+        }
+        return currentNode;
+      };
+
+      return removeNode(prev);
+    });
+  };
 
   const handleCommitToggle = (node: FileNode, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -166,8 +188,8 @@ const FileOrganizer = () => {
       <div key={node.path} className="relative">
         {/* Render node */}
         <Card
-          className={`mb-2 transition-colors duration-200 ${
-            isCommitted ? 'bg-green-100' : ''
+          className={`mb-2 transition-colors duration-200  hover:bg-gray-700 ${
+            isCommitted ? 'bg-green-100 text-gray-600' : 'bg-gray-800 text-gray-300'
           }`}
           style={{
             marginLeft: `${depth * 1.5}rem`, // Indentation based on depth
@@ -194,6 +216,7 @@ const FileOrganizer = () => {
                 onClick={(e) => handleCommitToggle(node, e)}
               />
               <X
+                onClick={(e) => handleRemoveNodes(node, e)}
                 className="cursor-pointer text-gray-400 hover:text-red-500"
                 size={20}
               />
@@ -312,21 +335,25 @@ const FileOrganizer = () => {
           value={directoryPath}
           onChange={(e) => setDirectoryPath(e.target.value)}
           placeholder="Enter directory path..."
-          className="flex-grow"
+          className="flex-grow text-white"
         />
-        <Button onClick={handleOrganize}>
-          Organize
-        </Button>
+      <button 
+        onClick={handleOrganize} 
+        className="bg-gray-800 hover:bg-gray-700 text-white rounded-lg p-2.5 transition-colors duration-200"
+      >
+        Organize
+      </button>
       </div>
-      <div className="flex-1 flex">
+      <div className="flex-1 flex overflow-hidden">
         {/* Left Panel - Directory Tree */}
-        <div className="w-1/2 p-4 border-r overflow-auto">
+        <div className="w-1/2 p-4 border-r">
           <div className="flex items-center gap-2 mb-4">
             <FolderTree className="text-blue-500" />
-            <h2 className="text-lg font-semibold">New Directory Structure</h2>
+            <h2 className="text-white text-lg font-semibold">New Directory Structure</h2>
             {fileStructure?
               (<Button 
               variant="default"
+              className="bg-gray-800 hover:bg-gray-700 text-white rounded-lg p-2.5 transition-colors duration-200"
               size="sm"
               onClick={(e) => handleCommit(e)}
             >
@@ -339,16 +366,33 @@ const FileOrganizer = () => {
               <p className="text-gray-500">Loading...</p> {/* Replace with a loading animation if desired */}
             </div>
           ) : fileStructure ? ( // Check if fileStructure is set
-            renderFileTree(fileStructure) // Show file structure when available
+            <div className="h-[calc(100vh-150px)] overflow-auto"
+            style={{
+              scrollbarWidth: 'none', // Firefox
+              msOverflowStyle: 'none', // IE/Edge
+            }}
+            > 
+              {renderFileTree(fileStructure)}
+            </div>
           ) : (
-            <div className="flex items-center justify-center h-full">
+            <div className="flex items-center justify-center h-200">
               <img src="src/ui/assets/cortex.svg" alt="Cortex FS" className="max-w-full h-auto" /> {/* Static image */}
             </div>
           )}
         </div>
         
         {/* Right Panel - File Summary */}
-        <div className="w-1/2 p-6 overflow-auto bg-gray-50">
+        <div className=" w-1/2 p-6 overflow-auto bg-gray-50 flex flex-col h-full"
+          style={{
+            scrollbarWidth: 'none', // Firefox
+            msOverflowStyle: 'none', // IE/Edge
+          }}
+        >
+            <style>{`
+            .w-1\\/2::-webkit-scrollbar {
+              display: none; /* Chrome, Safari */
+            }
+          `}</style>
           {renderSummaryPanel()}
         </div>
       </div>

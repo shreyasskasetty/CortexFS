@@ -1,13 +1,10 @@
-import { useState, useEffect } from 'react'
 import './App.css'
-import FileExplorer from './components/FileOrganizer'
-import FileOrganizer from './components/FileOrganizer'
-
+import Sidebar from './components/Sidebar'
 function App() {
 
   return (
     <>
-      <FileOrganizer />
+      <Sidebar />
     </>
   )
 }
