@@ -3,6 +3,7 @@ import path from 'path';
 import {isDev} from './util.js';
 // import { pollResources, getStaticData } from './resourceManager.js';
 import { getPreloadPath, getUIPath } from './pathResolver.js';
+import { startRabbitMQConsumer } from './consumer.js';
 // import { ipcMainHandle } from './util.js';
 type test = string;
 
@@ -22,6 +23,7 @@ app.on('ready', () => {
     // ipcMainHandle("getStaticData", ()=>{
     //     return getStaticData();
     // })
+    startRabbitMQConsumer();
     
 });
     
