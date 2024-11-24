@@ -4,6 +4,7 @@ import shutil
 import agentops
 from pathlib import Path
 from typing import Optional
+import asyncio
 import uvicorn
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import StreamingResponse
@@ -13,7 +14,9 @@ from dotenv import load_dotenv
 from src.organizer import DirectoryOrganizer
 from src.summarizer import FileSummarizer
 from src.watchdog import FileEventProducer
+import logging
 
+logger = logging.getLogger(__name__)
 load_dotenv()
 
 # Initialize AgentOps
@@ -143,13 +146,17 @@ def create_app():
         """
         directory_to_watch = request.watch_directory
         target_directory = request.target_directory
+        await producer.connect_to_rabbitmq()
         try:
-            producer.start_monitoring(directory_to_watch, target_directory)
+            await asyncio.to_thread(producer.start_monitoring, directory_to_watch, target_directory)
             return {"status": "Producer started", "directory": directory_to_watch}
         except FileNotFoundError as e:
+            await producer.connection.close()
             raise HTTPException(status_code=404, detail=str(e))
         except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Failed to start producer: {e}")
+            logger.error(f"Failed to start producer: {e}")
+            await producer.connection.close()
+            raise HTTPException(status_code=500, detail=f"Failed to start producer: {str(e)}")
 
 
     @app.post("/stop-producer")

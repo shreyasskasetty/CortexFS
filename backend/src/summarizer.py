@@ -102,8 +102,8 @@ class FileSummarizer:
         elif category == "csv":
             return self.preprocess_csv(file_path)
         elif category == "json":
-            with json.load(file_path) as file:
-                return json.dumps(file, indent=4)
+            with open(file_path, 'r') as file:
+                return json.load(file)
         elif category == "misc":
             with open(file_path, "r") as file:
                 return file.read()
@@ -117,6 +117,8 @@ class FileSummarizer:
             for fname in files:
                 full_path = os.path.join(self.base_path, fname)
                 content = self.process_file(full_path, category)
+                if(isinstance(content, dict)):
+                    content = json.dumps(content, indent=4)
                 if content:
                     documents.append(
                         Document(
