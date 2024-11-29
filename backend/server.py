@@ -17,6 +17,10 @@ from src.watchdog import FileEventProducer
 import logging
 
 logger = logging.getLogger(__name__)
+logging.basicConfig(
+    level=logging.INFO,  # Set the desired level: DEBUG, INFO, WARNING, ERROR, CRITICAL
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+)
 load_dotenv()
 
 # Initialize AgentOps
@@ -40,7 +44,9 @@ class WatchRequest(BaseModel):
 
 def create_app():
     app = FastAPI()
+    
     origins = ["*"]
+    
     app.add_middleware(
         CORSMiddleware,
         allow_origins=origins,
@@ -66,6 +72,7 @@ def create_app():
         summarizer=summarizer,
         rabbitmq_url=os.getenv("RABBITMQ_URL"),
         queue_name="suggestion-notifications",
+        logger=logger
     )
 
     @app.get("/")
@@ -146,7 +153,7 @@ def create_app():
         """
         directory_to_watch = request.watch_directory
         target_directory = request.target_directory
-        await producer.connect_to_rabbitmq()
+        # producer.connect_to_rabbitmq()
         try:
             await asyncio.to_thread(producer.start_monitoring, directory_to_watch, target_directory)
             return {"status": "Producer started", "directory": directory_to_watch}
@@ -158,6 +165,16 @@ def create_app():
             await producer.connection.close()
             raise HTTPException(status_code=500, detail=f"Failed to start producer: {str(e)}")
 
+    @app.on_event("startup")
+    async def startup_event():
+        producer.initialize_event_loop_thread()
+        await producer.connect_to_rabbitmq()
+
+    @app.on_event("shutdown")
+    async def shutdown_event():
+        producer.stop_event_loop()
+        if producer.connection:
+            await producer.connection.close()
 
     @app.post("/stop-producer")
     async def stop_producer():
@@ -165,7 +182,7 @@ def create_app():
         Stop the file event producer.
         """
         try:
-            producer.stop_monitoring()
+            await asyncio.to_thread(producer.stop_monitoring)
             return {"status": "Producer stopped"}
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Failed to stop producer: {e}")
