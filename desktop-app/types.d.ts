@@ -4,15 +4,28 @@ type Statistics = {
     storageUsage: number;
 };
 
+
+
 type StaticData = {
     totalStorage: number;
     cpuModel: string;
     totalMemoryGB: number;
 };
 
+type Suggestion = {
+    fileName: string;
+    size: string;
+    downloadDate: string;
+    currentPath: string;
+    summary: string;
+    suggestions: string[];
+}
 type EventPayloadMapping = {
     statistics: Statistics;
     getStaticData: StaticData;
+    suggestions: any;
+    showNotification: {title: string, body: string};
+    getSuggestions: Suggestion[];
 }
 
 interface FileNode {
@@ -47,6 +60,9 @@ interface Window {
     electron:  {
         subscribeStatistics: (callback: (statistics: Statistics)=> void) => Unsubcsribe;
         getStaticData: ()=> Promise<StaticData>;
+        subscribeSuggestions: (callback: (suggestion: any) => void) => Unsubcsribe;
+        getSuggestions: () => Promise<any>;
+        // showNotification: (callback: (payload: {title: string, body: string}) => void) => Unsubcsribe;
     }
 }
 

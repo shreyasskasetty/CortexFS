@@ -2,6 +2,7 @@ import {ipcMain} from 'electron';
 import {WebContents, WebFrameMain} from 'electron/main';
 import {pathToFileURL} from 'url';
 import { getUIPath } from './pathResolver.js';
+
 export function isDev() : boolean {
   return process.env.NODE_ENV === 'development';
 }

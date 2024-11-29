@@ -1,7 +1,8 @@
 import amqp from "amqplib";
-import { ipcMain } from "electron";
+import { BrowserWindow, ipcMain } from "electron";
+import { ipcWebContent } from "./util.js";
 
-export const startRabbitMQConsumer = async () => {
+export const startRabbitMQConsumer = async (mainWindow: BrowserWindow, db: any) => {
     const rabbitmqUrl = "amqp://localhost"; // Replace with your RabbitMQ URL
     const queueName = "suggestion-notifications";
 
@@ -20,14 +21,27 @@ export const startRabbitMQConsumer = async () => {
             queueName,
             (msg) => {
                 if (msg !== null) {
-                    const messageContent = msg.content.toString();
+                    const messageContent = msg.content.toString(); // Convert Buffer to string
                     console.log(`[x] Received: ${messageContent}`);
 
-                    // Acknowledge the message
-                    channel.ack(msg);
+                    try {
+                        // Parse the message as JSON
+                        const message = JSON.parse(messageContent);
 
-                    // Process the message (send it to Renderer process, etc.)
-                    handleMessageInRenderer(messageContent);
+                        // // Insert into the database
+                        // db.prepare(`
+                        //     INSERT INTO suggestions (content) VALUES (?)
+                        // `).run(messageContent);
+
+                        // Acknowledge the message
+                        channel.ack(msg);
+
+                        // Send the parsed message to the Renderer process
+                        handleMessageInRenderer(mainWindow, message, db);
+                    } catch (error) {
+                        console.error("Failed to parse message content:", error);
+                        channel.nack(msg); // Negative acknowledgment if parsing fails
+                    }
                 }
             },
             { noAck: false }
@@ -37,8 +51,25 @@ export const startRabbitMQConsumer = async () => {
     }
 };
 
-const handleMessageInRenderer = (message: any) => {
+function addNewSuggestion(suggestion: any, db: any) {
+    // Insert into database
+    db.prepare(`
+        INSERT INTO suggestions (fileName, fileSize, downloadDate, currentPath, summary, suggestedPaths)
+        VALUES (?, ?, ?, ?, ?, ?)
+    `).run(
+        suggestion.fileName,
+        suggestion.size,
+        suggestion.downloadDate,
+        suggestion.srcPath,
+        suggestion.summary,
+        JSON.stringify(suggestion.suggestions) // Serialize the array as a JSON string
+    );
+}
+
+const handleMessageInRenderer = (mainWindow: BrowserWindow, message: any, db: any) => {
     // Use Electron's IPC to send the message to the Renderer process
-    console.log("Sending message to Renderer process:", message);
-    // ipcMain.emit("message-from-rabbitmq", message); // Emit an event to Renderer
+    // console.log("Sending message to Renderer process:", message);
+    addNewSuggestion(message, db);
+    ipcWebContent("suggestions", mainWindow.webContents, message);
+    ipcWebContent("showNotification", mainWindow.webContents, {title: `Path Suggestions for ${message.fileName}`, body: `Suggested paths: ${message.suggestions.join(", ")}`});
 };

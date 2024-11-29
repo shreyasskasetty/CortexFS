@@ -22,17 +22,37 @@ function getCpuUsage(): Promise<number>{
     });
 }
 
-export function getStaticData() {
-    const totalStorage = getStorageData().total;
-    const cpuModel = os.cpus()[0].model;
-    const totalMemoryGB = Math.floor(osUtils.totalmem() / 1024);
+// export function getStaticData() {
+//     const totalStorage = getStorageData().total;
+//     const cpuModel = os.cpus()[0].model;
+//     const totalMemoryGB = Math.floor(osUtils.totalmem() / 1024);
   
-    return {
-      totalStorage,
-      cpuModel,
-      totalMemoryGB,
-    };
-  }
+//     return {
+//       totalStorage,
+//       cpuModel,
+//       totalMemoryGB,
+//     };
+//   }
+
+export function getSuggestions(db: any){
+
+  const rows = db.prepare("SELECT * FROM suggestions").all();
+
+    // Convert raw database rows into structured file data
+    const suggestions = rows.reduce((acc: any, row: any) => {
+        acc.push({
+            name: row.fileName,
+            size: row.fileSize,
+            downloadDate: row.downloadDate,
+            currentPath: row.currentPath,
+            summary: row.summary,
+            suggestions: JSON.parse(row.suggestedPaths),
+        });
+        return acc;
+    }, []);
+
+    return suggestions;
+}
   
   function getRamUsage() {
     return 1 - osUtils.freememPercentage();
