@@ -38,6 +38,9 @@ class CommitRequest(BaseModel):
     src_path: str  
     dst_path: str 
 
+class CommitSuggestionRequest(BaseModel):
+    src_path : str
+    dst_path : str
 class WatchRequest(BaseModel):
     watch_directory: str
     target_directory: str
@@ -146,6 +149,48 @@ def create_app():
 
         return {"message": "Commit successful"}
 
+    @app.post("/commit-suggestion")
+    async def commit_suggestion(request: CommitSuggestionRequest):
+        print('*'*80)
+        print(request)
+        print(request.src_path)
+        print(request.dst_path)
+        print('*'*80)
+
+        # Check if src_path exists
+        src = request.src_path
+        if not os.path.exists(src):
+            raise HTTPException(
+                status_code=400, detail="Source path does not exist in filesystem"
+            )
+        
+        dst = request.dst_path
+        # Ensure the destination directory exists
+        dst_directory = os.path.dirname(dst)
+
+        if not os.path.exists(src):
+            raise HTTPException(
+                status_code=400, detail="Source path does not exist in filesystem"
+            )
+
+        # Ensure the destination directory exists
+        dst_directory = os.path.dirname(dst)
+        os.makedirs(dst_directory, exist_ok=True)
+
+        try:
+            # If src is a file and dst is a directory, move the file into dst with the original filename.
+            if os.path.isfile(src) and os.path.isdir(dst):
+                shutil.move(src, os.path.join(dst, os.path.basename(src)))
+            else:
+                shutil.move(src, dst)
+        except Exception as e:
+            raise HTTPException(
+                status_code=500,
+                detail=f"An error occurred while moving the resource: {e}"
+            )
+
+        return {"message": "Commit successful"}
+    
     @app.post("/start-producer")
     async def start_producer(request: WatchRequest):
         """
