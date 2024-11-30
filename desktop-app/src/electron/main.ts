@@ -7,7 +7,7 @@ import {isDev} from './util.js';
 import { getPreloadPath, getUIPath } from './pathResolver.js';
 import { startRabbitMQConsumer } from './consumer.js';
 import { ipcMainHandle } from './util.js';
-import { getSuggestions } from './resourceManager.js';
+import { getSuggestions, deleteSuggestion } from './resourceManager.js';
 type test = string;
 
 export const initializeDatabase = () => {
@@ -49,6 +49,15 @@ app.on('ready', () => {
     // pollResources(mainWindow);
     ipcMainHandle("getSuggestions", ()=>{
         return getSuggestions(db);
+    })
+    ipcMainHandle("deleteSuggestion", (args: any)=>{
+        const { id } = args;
+
+        if (typeof id !== "number" || isNaN(id)) {
+        throw new Error("Invalid ID provided for deleteSuggestion");
+        }
+
+        deleteSuggestion(db, id);
     })
     startRabbitMQConsumer(mainWindow, db);
     

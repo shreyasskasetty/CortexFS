@@ -1,11 +1,14 @@
 import React, { useEffect, useState } from 'react';
-import { FolderTree, Bell, Settings, CheckCircle, XCircle, ArrowLeft, FileText } from 'lucide-react';
+import { FolderTree, Bell, Settings, CheckCircle, XCircle, ArrowLeft, FileText, X} from 'lucide-react';
+import axios, { AxiosRequestConfig } from 'axios';
+import { send } from 'vite';
 
 const SuggestionDetail = ({ file, suggestions, onBack, onAccept, onReject }: any) => {
   useEffect(() => {
     window.electron.subscribeSuggestions((suggestion: any) => {
-      console.log('Received suggestion:', suggestion);
+      // console.log('Received suggestion:', suggestion);
       // Update the suggestions
+      // console.log(file)
     });
   }, []);
 
@@ -49,7 +52,7 @@ const SuggestionDetail = ({ file, suggestions, onBack, onAccept, onReject }: any
               </div>
               <div className="flex space-x-2">
                 <button
-                  onClick={() => onAccept(suggestedPath)}
+                  onClick={() => onAccept(suggestedPath, file.currentPath, file.id)}
                   className="p-2 rounded-full hover:bg-gray-700 text-green-500"
                   title="Accept"
                 >
@@ -71,18 +74,22 @@ const SuggestionDetail = ({ file, suggestions, onBack, onAccept, onReject }: any
   );
 };
 
-const SuggestionsList = ({ files, onSelectFile }: any) => {
+const SuggestionsList = ({ files, onSelectFile, onDeleteSuggestion }: any) => {
   return (
     <div className="p-6">
       <h2 className="text-xl font-semibold text-white mb-4">Recent File Suggestions</h2>
       <div className="space-y-4">
         {files.map((file: any, index: number) => (
-          <button
-            key={index}
-            onClick={() => onSelectFile(file)}
-            className="w-full text-left bg-gray-800 rounded-lg p-4 text-gray-300 hover:bg-gray-700 transition-colors duration-200"
+          <div 
+            key={index} 
+            className="relative bg-gray-800 rounded-lg p-4 text-gray-300 hover:bg-gray-700 transition-colors duration-200"
           >
-            <div className="flex items-start space-x-3">
+            <button
+              onClick={() => {
+                onSelectFile(file)
+              }}
+              className="w-full text-left flex items-start space-x-3"
+            >
               <FileText size={24} />
               <div>
                 <h3 className="font-medium text-white mb-1">{file.name}</h3>
@@ -92,8 +99,18 @@ const SuggestionsList = ({ files, onSelectFile }: any) => {
                   {file.suggestions.length} suggestions available
                 </p>
               </div>
-            </div>
-          </button>
+            </button>
+            <button
+              onClick={(e) => {
+                e.stopPropagation(); // Prevent selecting the file when clicking delete
+                onDeleteSuggestion(file.id);
+              }}
+              className="absolute top-4 right-4 text-gray-400 hover:text-red-500 transition-colors"
+              title="Remove Suggestion"
+            >
+              <X size={20} />
+            </button>
+          </div>
         ))}
       </div>
     </div>
@@ -103,17 +120,18 @@ const SuggestionsList = ({ files, onSelectFile }: any) => {
 const SuggestionsView = () => {
   const [selectedFile, setSelectedFile] = useState(null);
   const [suggestions, setSuggestions] = useState([]);
+  async function fetchSuggestions() {
+    const suggestions = await window.electron.getSuggestions();
+    // Update the suggestions
+    setSuggestions(suggestions);
+  }
+
   useEffect(() => {
-    async function fetchSuggestions() {
-      const suggestions = await window.electron.getSuggestions();
-      console.log('Fetched suggestions:', suggestions);
-      // Update the suggestions
-      setSuggestions(suggestions);
-    }
     fetchSuggestions();
   }, []);
 
   const files = suggestions?.map((suggestion: any) => ({
+    id: suggestion.id,
     name: suggestion.name,
     size: `${(suggestion.size / (1024 * 1024)).toFixed(2)} MB`,
     downloadDate: suggestion.downloadDate,
@@ -122,15 +140,41 @@ const SuggestionsView = () => {
     suggestions: suggestion.suggestions
   }));
 
-  const handleAccept = (suggestion: string) => {
-    console.log('Accepted suggestion:', suggestion);
-    // Implement your file moving logic here
+  const sendCommitRequest =  async (source_path: string, destination_path: string) => {
+    const data: CommitSuggestionRequest = {src_path: source_path, dst_path: destination_path};
+
+    const config: AxiosRequestConfig = {
+      headers: {
+        'Content-Type': 'application/json',
+      },
+  };
+  try {
+    const response = await axios.post('http://0.0.0.0:8000/commit-suggestion', data, config);
+    return response.data;
+  } catch (error) {
+    alert('Error Occured: '+ error)
+    console.error('Error occurred:', error);
+  }
+  return null;
+}
+
+
+  const handleAccept = async (suggestedPath: string, currentPath: string, id: number) => {
+    // console.log('Accepted suggestion:', suggestedPath);
+    const response = await sendCommitRequest(currentPath, suggestedPath);
+    await window.electron.deleteSuggestion(id);
+    fetchSuggestions();
     setSelectedFile(null); // Return to list view after accepting
   };
 
   const handleReject = (suggestion: string) => {
-    console.log('Rejected suggestion:', suggestion);
+    // console.log('Rejected suggestion:', suggestion);
     // Implement your rejection logic here
+  };
+
+  const handleDeleteSuggestion = async (id: number) => {
+    await window.electron.deleteSuggestion(id);
+    fetchSuggestions();
   };
 
   return selectedFile ? (
@@ -145,6 +189,7 @@ const SuggestionsView = () => {
     <SuggestionsList
       files={files}
       onSelectFile={setSelectedFile}
+      onDeleteSuggestion={handleDeleteSuggestion}
     />
   );
 };

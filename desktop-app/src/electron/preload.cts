@@ -6,6 +6,7 @@ electron.contextBridge.exposeInMainWorld('electron', {
     },
     getStaticData: () => ipcInvoke("getStaticData"),
     getSuggestions: () => ipcInvoke("getSuggestions"),
+    deleteSuggestion: (id: number) => ipcInvoke("deleteSuggestion", {id}),
     subscribeSuggestions: (callback) =>{
         return ipcOn('suggestions', (suggestion) => callback(suggestion))
     },
@@ -13,8 +14,10 @@ electron.contextBridge.exposeInMainWorld('electron', {
 
 function ipcInvoke<Key extends keyof EventPayloadMapping>(
     key: Key,
+    // add optional args
+    args?: any
 ): Promise<EventPayloadMapping[Key]>{
-    return electron.ipcRenderer.invoke(key);
+    return electron.ipcRenderer.invoke(key, args);
 }
 
 function ipcOn<Key extends keyof EventPayloadMapping>(

@@ -26,6 +26,7 @@ type EventPayloadMapping = {
     suggestions: any;
     showNotification: {title: string, body: string};
     getSuggestions: Suggestion[];
+    deleteSuggestion: void;
 }
 
 interface FileNode {
@@ -56,12 +57,18 @@ interface FileNode {
     dst_path: string;
   }
 
+  interface CommitSuggestionRequest {
+    src_path: string;
+    dst_path: string;
+  }
+
 interface Window {
     electron:  {
         subscribeStatistics: (callback: (statistics: Statistics)=> void) => Unsubcsribe;
         getStaticData: ()=> Promise<StaticData>;
         subscribeSuggestions: (callback: (suggestion: any) => void) => Unsubcsribe;
         getSuggestions: () => Promise<any>;
+        deleteSuggestion: (id: number) => Promise<void>;
         // showNotification: (callback: (payload: {title: string, body: string}) => void) => Unsubcsribe;
     }
 }

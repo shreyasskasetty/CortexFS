@@ -7,10 +7,10 @@ export function isDev() : boolean {
   return process.env.NODE_ENV === 'development';
 }
 
-export function ipcMainHandle<Key extends keyof EventPayloadMapping>(key: Key, handler: () => EventPayloadMapping[Key]){
-    ipcMain.handle(key, (event)=> {
+export function ipcMainHandle<Key extends keyof EventPayloadMapping>(key: Key, handler: (args: any) => EventPayloadMapping[Key]){
+    ipcMain.handle(key, (event, args)=> {
         validateEventFrame(event.senderFrame!);
-        return handler()
+        return handler(args);
     });
 }
 

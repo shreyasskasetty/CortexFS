@@ -41,6 +41,7 @@ export function getSuggestions(db: any){
     // Convert raw database rows into structured file data
     const suggestions = rows.reduce((acc: any, row: any) => {
         acc.push({
+            id: row.id,
             name: row.fileName,
             size: row.fileSize,
             downloadDate: row.downloadDate,
@@ -54,6 +55,10 @@ export function getSuggestions(db: any){
     return suggestions;
 }
   
+export function deleteSuggestion(db: any, id: number) {
+  db.prepare("DELETE FROM suggestions WHERE id = ?").run(id);
+}
+
   function getRamUsage() {
     return 1 - osUtils.freememPercentage();
   }
