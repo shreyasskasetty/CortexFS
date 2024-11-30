@@ -110,6 +110,9 @@ class FileEventProducer:
         category = self.summarizer.get_file_category(full_file_path)
         if category:
             content = self.summarizer.process_file(full_file_path, category)
+            # if category is json then do json dump
+            if isinstance(content, dict):
+                content = json.dumps(content)
             document = Document(
                 page_content=content,
                 metadata={"file_name": rel_file_path, "source": self.directory_to_watch, "category": category},
