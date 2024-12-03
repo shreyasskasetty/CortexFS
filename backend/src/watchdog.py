@@ -132,7 +132,9 @@ class FileEventProducer:
 
     def on_created(self, event):
         """Callback for file creation."""
+        
         if not event.is_directory:
+            start_time = time.time()
             file_path = os.path.relpath(event.src_path, self.directory_to_watch)
             self.logger.info(f"File created: {file_path}")
             time.sleep(1)
@@ -143,7 +145,8 @@ class FileEventProducer:
             except Exception as e:
                 self.logger.info(f"Error scheduling process_file_async: {e}")
             # asyncio.create_task(self.process_file_async(file_path))  # Use create_task for non-blocking execution
-
+            end_time = time.time()
+            self.logger.info(f"Time taken for file processing: {end_time - start_time:.2f} seconds")
     async def process_file_async(self, file_path):
         """Process the file asynchronously and send suggestions."""
         try:

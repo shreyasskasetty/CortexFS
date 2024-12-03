@@ -43,6 +43,9 @@ You will be provided with a file and its summary content. Suggest 3 possible des
 
 **Destination Directory paths**:
 {destination_directories}
+
+** NOTE: ** If the destination path is not appropriate in the destination folder structure, suggest a new created path that is more appropriate in the same base destination directory.
+
 **Output Requirements:**
 - Return a JSON object with the following schema:
 ```json

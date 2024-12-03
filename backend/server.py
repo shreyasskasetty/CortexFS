@@ -15,7 +15,7 @@ from src.organizer import DirectoryOrganizer
 from src.summarizer import FileSummarizer
 from src.watchdog import FileEventProducer
 import logging
-
+import time
 logger = logging.getLogger(__name__)
 logging.basicConfig(
     level=logging.INFO,  # Set the desired level: DEBUG, INFO, WARNING, ERROR, CRITICAL
@@ -84,24 +84,25 @@ def create_app():
 
     @app.post("/batch-organize")
     async def batch_organize(request: Request):
+        start_time = time.time()  # Start timer
         session = agentops.start_session(tags=["LlamaFS"])
         path = request.path
 
         if not os.path.exists(path):
             raise HTTPException(status_code=404, detail="Path not found")
 
-        print("Loading documents...")
+        logger.info("Loading documents...")
         summarizer.base_path = path
         documents, unsupported_files = summarizer.load_documents()
 
-        print(f"Summarizing {len(documents)} documents...")
+        logger.info(f"Summarizing {len(documents)} documents...")
         summaries = await summarizer.summarize_documents(documents)
 
-        print("Generating reorganization actions...")
+        logger.info("Generating reorganization actions...")
         organizer.base_dir = path
         file_moves = organizer.get_reorganization_actions(summaries)
 
-        print("Creating directory structure...")
+        logger.info("Creating directory structure...")
         tree = organizer.create_directory_structure(file_moves["files"], summaries, path, agentops=session)
 
         # Add summaries to the file moves
@@ -109,9 +110,11 @@ def create_app():
         for file in files:
             file["summary"] = summaries[files.index(file)]["summary"]
 
-        print("Converting tree structure for response...")
+        logger.info("Converting tree structure for response...")
         response_data = organizer.convert_to_tree_with_details(files, base_path=path)
-
+        end_time = time.time()
+        elapsed_time = end_time - start_time
+        logger.info(f"Time taken for batch organization: {elapsed_time:.2f} seconds")
         return {"status": "ok", "treeStructure": response_data}
 
     @app.post("/commit")
@@ -174,8 +177,7 @@ def create_app():
             )
 
         # Ensure the destination directory exists
-        dst_directory = os.path.dirname(dst)
-        os.makedirs(dst_directory, exist_ok=True)
+        os.makedirs(dst, exist_ok=True)
 
         try:
             # If src is a file and dst is a directory, move the file into dst with the original filename.
@@ -198,6 +200,12 @@ def create_app():
         """
         directory_to_watch = request.watch_directory
         target_directory = request.target_directory
+        if not os.path.exists(directory_to_watch):
+            raise HTTPException(status_code=404, detail="Directory not found")
+        
+        if not os.path.exists(target_directory):
+            raise HTTPException(status_code=404, detail="Target directory not found")
+        
         # producer.connect_to_rabbitmq()
         try:
             await asyncio.to_thread(producer.start_monitoring, directory_to_watch, target_directory)
@@ -230,7 +238,7 @@ def create_app():
             await asyncio.to_thread(producer.stop_monitoring)
             return {"status": "Producer stopped"}
         except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Failed to stop producer: {e}")
+            raise HTTPException(status_code=500, detail=f"Failed to stop producer: {str(e)}")
 
     return app
 
