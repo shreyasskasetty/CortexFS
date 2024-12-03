@@ -1,0 +1,78 @@
+=========================================== test session starts ===========================================
+platform darwin -- Python 3.11.8, pytest-7.4.0, pluggy-1.0.0
+rootdir: /Users/shreyasskasetty/Desktop/github_projects/CortexFS/backend
+plugins: html-4.1.1, metadata-3.1.1, anyio-4.2.0
+collected 14 items                                                                                        
+
+unittests.py ..............                                                                         [100%]
+
+============================================ warnings summary =============================================
+unittests.py::TestFastAPIEndpoints::test_batch_organize_path_not_found
+unittests.py::TestFastAPIEndpoints::test_batch_organize_valid
+unittests.py::TestFastAPIEndpoints::test_commit
+unittests.py::TestFastAPIEndpoints::test_commit_suggestion_source_not_found
+unittests.py::TestFastAPIEndpoints::test_commit_suggestion_valid
+unittests.py::TestFastAPIEndpoints::test_health_check
+unittests.py::TestFastAPIEndpoints::test_start_producer
+unittests.py::TestFastAPIEndpoints::test_start_producer_invalid_directory
+unittests.py::TestFastAPIEndpoints::test_stop_producer
+  /Users/shreyasskasetty/Desktop/github_projects/CortexFS/backend/server.py:221: DeprecationWarning: 
+          on_event is deprecated, use lifespan event handlers instead.
+  
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+          
+    @app.on_event("startup")
+
+unittests.py: 18 warnings
+  /opt/anaconda3/lib/python3.11/site-packages/fastapi/applications.py:4495: DeprecationWarning: 
+          on_event is deprecated, use lifespan event handlers instead.
+  
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+          
+    return self.router.on_event(event_type)
+
+unittests.py::TestFastAPIEndpoints::test_batch_organize_path_not_found
+unittests.py::TestFastAPIEndpoints::test_batch_organize_valid
+unittests.py::TestFastAPIEndpoints::test_commit
+unittests.py::TestFastAPIEndpoints::test_commit_suggestion_source_not_found
+unittests.py::TestFastAPIEndpoints::test_commit_suggestion_valid
+unittests.py::TestFastAPIEndpoints::test_health_check
+unittests.py::TestFastAPIEndpoints::test_start_producer
+unittests.py::TestFastAPIEndpoints::test_start_producer_invalid_directory
+unittests.py::TestFastAPIEndpoints::test_stop_producer
+  /Users/shreyasskasetty/Desktop/github_projects/CortexFS/backend/server.py:226: DeprecationWarning: 
+          on_event is deprecated, use lifespan event handlers instead.
+  
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+          
+    @app.on_event("shutdown")
+
+unittests.py::TestFastAPIEndpoints::test_batch_organize_valid
+unittests.py::TestFastAPIEndpoints::test_batch_organize_valid
+  <frozen importlib._bootstrap>:241: DeprecationWarning: builtin type SwigPyPacked has no __module__ attribute
+
+unittests.py::TestFastAPIEndpoints::test_batch_organize_valid
+unittests.py::TestFastAPIEndpoints::test_batch_organize_valid
+  <frozen importlib._bootstrap>:241: DeprecationWarning: builtin type SwigPyObject has no __module__ attribute
+
+unittests.py::TestFastAPIEndpoints::test_batch_organize_valid
+  <frozen importlib._bootstrap>:241: DeprecationWarning: builtin type swigvarlink has no __module__ attribute
+
+unittests.py::TestFastAPIEndpoints::test_batch_organize_valid
+  /opt/anaconda3/lib/python3.11/site-packages/langchain_community/document_loaders/parsers/pdf.py:300: UserWarning: Warning: Empty content on page 0 of document /Users/shreyasskasetty/Desktop/github_projects/CortexFS/files/rest_api_intermediate.pdf
+    warnings.warn(
+
+unittests.py::TestFastAPIEndpoints::test_batch_organize_valid
+  /Users/shreyasskasetty/Desktop/github_projects/CortexFS/backend/src/summarizer.py:158: LangChainDeprecationWarning: The class `ChatOllama` was deprecated in LangChain 0.3.1 and will be removed in 1.0.0. An updated version of the class exists in the :class:`~langchain-ollama package and should be used instead. To use it run `pip install -U :class:`~langchain-ollama` and import as `from :class:`~langchain_ollama import ChatOllama``.
+    chat = ChatOllama(model="llama3.2")
+
+unittests.py::TestFastAPIEndpoints::test_batch_organize_valid
+  /opt/anaconda3/lib/python3.11/site-packages/pydantic/main.py:1114: PydanticDeprecatedSince20: The `dict` method is deprecated; use `model_dump` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.9/migration/
+    warnings.warn('The `dict` method is deprecated; use `model_dump` instead.', category=PydanticDeprecatedSince20)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+==================================== 14 passed, 44 warnings in 32.09s =====================================
+sys:1: DeprecationWarning: builtin type swigvarlink has no __module__ attribute
